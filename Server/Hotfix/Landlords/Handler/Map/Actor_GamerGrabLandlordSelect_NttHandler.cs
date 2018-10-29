@@ -8,7 +8,7 @@ namespace ETHotfix
     [ActorMessageHandler(AppType.Map)]
     public class Actor_GamerGrabLandlordSelect_NttHandler : AMActorHandler<Gamer, Actor_GamerGrabLandlordSelect_Ntt>
     {
-        protected override async Task Run(Gamer gamer, Actor_GamerGrabLandlordSelect_Ntt message)
+        protected override void Run(Gamer gamer, Actor_GamerGrabLandlordSelect_Ntt message)
         {
             Room room = Game.Scene.GetComponent<RoomComponent>().Get(gamer.RoomID);
             OrderControllerComponent orderController = room.GetComponent<OrderControllerComponent>();
@@ -56,11 +56,9 @@ namespace ETHotfix
                         Array.ForEach(gamers, _gamer =>
                         {
                             ActorMessageSender actorProxy = _gamer.GetComponent<UnitGateComponent>().GetActorMessageSender();
-                            actorProxy.Send(new Actor_GameStart_Ntt()
-                            {
-                                HandCards = _gamer.GetComponent<HandCardsComponent>().GetAll(),
-                                GamersCardNum = gamersCardNum
-                            });
+                            Actor_GameStart_Ntt actorMessage = new Actor_GameStart_Ntt();
+                            actorMessage.HandCards.AddRange(_gamer.GetComponent<HandCardsComponent>().GetAll());
+                            actorMessage.GamersCardNum.AddRange(gamersCardNum);
                         });
 
                         //随机先手玩家
@@ -87,7 +85,6 @@ namespace ETHotfix
                 orderController.SelectLordIndex++;
                 room.Broadcast(new Actor_AuthorityGrabLandlord_Ntt() { UserID = orderController.CurrentAuthority });
             }
-            await Task.CompletedTask;
         }
     }
 }

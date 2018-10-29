@@ -54,7 +54,7 @@ namespace ETHotfix
             //发地主牌
             for (int i = 0; i < 3; i++)
             {
-                self.DealTo(room.Id);
+                self.DealTo(room.InstanceId);
             }
 
             self.Multiples = self.Config.Multiples;
@@ -68,7 +68,7 @@ namespace ETHotfix
         {
             Room room = self.GetParent<Room>();
             Card card = room.GetComponent<DeckComponent>().Deal();
-            if (id == room.Id)
+            if (id == room.InstanceId)
             {
                 DeskCardsCacheComponent deskCardsCache = room.GetComponent<DeskCardsCacheComponent>();
                 deskCardsCache.AddCard(card);
@@ -115,7 +115,9 @@ namespace ETHotfix
             }
 
             //广播地主消息
-            room.Broadcast(new Actor_SetLandlord_Ntt() { UserID = id, LordCards = deskCardsCache.LordCards.ToArray() });
+            Actor_SetLandlord_Ntt SetLandlordMessage = new Actor_SetLandlord_Ntt() { UserID = id };
+            SetLandlordMessage.LordCards.AddRange(deskCardsCache.LordCards);
+            room.Broadcast(SetLandlordMessage);
 
             //广播地主先手出牌消息
             room.Broadcast(new Actor_AuthorityPlayCard_Ntt() { UserID = id, IsFirst = true });
@@ -173,7 +175,7 @@ namespace ETHotfix
             {
                 //同步匹配服务器开始游戏
                 room.State = RoomState.Game;
-                MapHelper.SendMessage(new MP2MH_SyncRoomState_Ntt() { RoomID = room.Id, State = room.State });
+                MapHelper.SendMessage(new MP2MH_SyncRoomState_Ntt() { RoomID = room.InstanceId, State = room.State });
 
                 //初始玩家开始状态
                 foreach (var _gamer in gamers)
@@ -207,17 +209,16 @@ namespace ETHotfix
                 foreach (var _gamer in gamers)
                 {
                     ActorMessageSender actorProxy = _gamer.GetComponent<UnitGateComponent>().GetActorMessageSender();
-                    actorProxy.Send(new Actor_GameStart_Ntt()
-                    {
-                        HandCards = _gamer.GetComponent<HandCardsComponent>().GetAll(),
-                        GamersCardNum = gamersCardNum
-                    });
+                    Actor_GameStart_Ntt gameStartMessage = new Actor_GameStart_Ntt();
+                    gameStartMessage.HandCards.AddRange(_gamer.GetComponent<HandCardsComponent>().GetAll());
+                    gameStartMessage.GamersCardNum.AddRange(gamersCardNum);
+                    actorProxy.Send(gameStartMessage);
                 }
 
                 //随机先手玩家
                 gameController.RandomFirstAuthority();
 
-                Log.Info($"房间{room.Id}开始游戏");
+                Log.Info($"房间{room.InstanceId}开始游戏");
             }
         }
 
@@ -255,7 +256,9 @@ namespace ETHotfix
                     {
                         //剩余玩家摊牌
                         Card[] _gamerCards = gamer.GetComponent<HandCardsComponent>().GetAll();
-                        room.Broadcast(new Actor_GamerPlayCard_Ntt() { UserID = gamer.UserID, Cards = _gamerCards });
+                        Actor_GamerPlayCard_Ntt gamerPlayCardMessage = new Actor_GamerPlayCard_Ntt() { UserID = gamer.UserID };
+                        gamerPlayCardMessage.Cards.AddRange(gamer.GetComponent<HandCardsComponent>().GetAll());
+                        room.Broadcast(gamerPlayCardMessage);
                     }
                 }
 
@@ -285,7 +288,7 @@ namespace ETHotfix
 
             //同步匹配服务器结束游戏
             room.State = RoomState.Ready;
-            MapHelper.SendMessage(new MP2MH_SyncRoomState_Ntt() { RoomID = room.Id, State = room.State });
+            MapHelper.SendMessage(new MP2MH_SyncRoomState_Ntt() { RoomID = room.InstanceId, State = room.State });
 
             Dictionary<long, long> gamersMoney = new Dictionary<long, long>();
             foreach (GamerScore gamerScore in gamersScore)
@@ -297,13 +300,14 @@ namespace ETHotfix
             }
 
             //广播游戏结束消息
-            room.Broadcast(new Actor_Gameover_Ntt()
+            Actor_Gameover_Ntt gameoverMessage = new Actor_Gameover_Ntt()
             {
-                Winner = (byte)winnerIdentity,
+                Winner = winnerIdentity,
                 BasePointPerMatch = self.BasePointPerMatch,
-                Multiples = self.Multiples,
-                GamersScore = gamersScore
-            });
+                Multiples = self.Multiples
+            };
+            gameoverMessage.GamersScore.AddRange(gamersScore);
+            room.Broadcast(gameoverMessage);
 
             //清理玩家
             foreach (var _gamer in gamers)
@@ -311,7 +315,7 @@ namespace ETHotfix
                 //踢出离线玩家
                 if (_gamer.isOffline)
                 {
-                    ActorMessageSender actorProxy = Game.Scene.GetComponent<ActorMessageSenderComponent>().Get(_gamer.Id);
+                    ActorMessageSender actorProxy = Game.Scene.GetComponent<ActorMessageSenderComponent>().Get(_gamer.InstanceId);
                     await actorProxy.Call(new Actor_PlayerExitRoom_Req());
                 }
                 //踢出余额不足玩家

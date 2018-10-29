@@ -31,9 +31,9 @@ namespace ETHotfix
 		{
 			self.Handlers.Clear();
 
-			AppType appType = Game.Scene.GetComponent<StartConfigComponent>().StartConfig.AppType;
+			AppType appType = StartConfigComponent.Instance.StartConfig.AppType;
 
-			Type[] types = DllHelper.GetMonoTypes();
+			List<Type> types = Game.EventSystem.GetTypes(typeof(MessageHandlerAttribute));
 
 			foreach (Type type in types)
 			{

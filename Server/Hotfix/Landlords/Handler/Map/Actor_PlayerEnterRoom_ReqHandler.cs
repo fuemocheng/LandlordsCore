@@ -30,7 +30,7 @@ namespace ETHotfix
                         if (_gamer == null)
                         {
                             //添加空位
-                            broadcastMessage.Gamers.Add(null);
+                            broadcastMessage.Gamers.Add(new GamerInfo());
                             continue;
                         }
 
@@ -60,7 +60,7 @@ namespace ETHotfix
                         if (_gamer == null)
                         {
                             //添加空位
-                            broadcastMessage.Gamers.Add(null);
+                            broadcastMessage.Gamers.Add(default(GamerInfo));
                             continue;
                         }
 
@@ -87,22 +87,29 @@ namespace ETHotfix
                             UserID = _gamer.UserID,
                             Num = _gamer.GetComponent<HandCardsComponent>().GetAll().Length
                         });
-                        gamersState.Add(new GamerState()
+                        GamerState gamerState = new GamerState()
                         {
                             UserID = _gamer.UserID,
-                            Identity = (byte)handCards.AccessIdentity,
-                            GrabLandlordState = orderController.GamerLandlordState.ContainsKey(_gamer.UserID)
-                            ? orderController.GamerLandlordState[_gamer.UserID]
-                            : false
-                        });
+                            UserIdentity = handCards.AccessIdentity
+                        };
+                        if (orderController.GamerLandlordState.TryGetValue(_gamer.UserID, out bool state))
+                        {
+                            if (state)
+                            {
+                                gamerState.State = GrabLandlordState.Grab;
+                            }
+                            else
+                            {
+                                gamerState.State = GrabLandlordState.UnGrab;
+                            }
+                        }
+                        gamersState.Add(gamerState);
                     }
 
                     //发送游戏开始消息
-                    Actor_GameStart_Ntt gameStartNotice = new Actor_GameStart_Ntt()
-                    {
-                        HandCards = gamer.GetComponent<HandCardsComponent>().GetAll(),
-                        GamersCardNum = gamersCardNum
-                    };
+                    Actor_GameStart_Ntt gameStartNotice = new Actor_GameStart_Ntt();
+                    gameStartNotice.HandCards.AddRange(gamer.GetComponent<HandCardsComponent>().GetAll());
+                    gameStartNotice.GamersCardNum.AddRange(gamersCardNum);
                     actorProxy.Send(gameStartNotice);
 
                     Card[] lordCards = null;
@@ -125,17 +132,21 @@ namespace ETHotfix
                     //发送重连数据
                     Actor_GamerReconnect_Ntt reconnectNotice = new Actor_GamerReconnect_Ntt()
                     {
-                        Multiples = room.GetComponent<GameControllerComponent>().Multiples,
-                        GamersState = gamersState,
-                        DeskCards = new KeyValuePair<long, Card[]>(orderController.Biggest, deskCardsCache.library.ToArray()),
-                        LordCards = lordCards,
+                        UserId = orderController.Biggest,
+                        Multiples = room.GetComponent<GameControllerComponent>().Multiples
                     };
+                    reconnectNotice.GamersState.AddRange(gamersState);
+                    reconnectNotice.Cards.AddRange(deskCardsCache.library);
+                    if (lordCards != null)
+                    {
+                        reconnectNotice.LordCards.AddRange(lordCards);
+                    }
                     actorProxy.Send(reconnectNotice);
 
                     Log.Info($"玩家{message.UserID}重连");
                 }
 
-                response.GamerID = gamer.Id;
+                response.GamerID = gamer.InstanceId;
 
                 reply(response);
             }

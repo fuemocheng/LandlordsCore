@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
     <AssemblyName>Hotfix</AssemblyName>
     <RootNamespace>ETHotfix</RootNamespace>
   </PropertyGroup>
@@ -17,6 +17,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Other\**" />
+    <Compile Include="..\..\Unity\Assets\Model\Module\Message\NetOuterComponentSystem.cs">
+      <Link>Module\Message\NetOuterComponentSystem.cs</Link>
+    </Compile>
     <EmbeddedResource Remove="Other\**" />
     <None Remove="Other\**" />
   </ItemGroup>
